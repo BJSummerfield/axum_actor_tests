@@ -1,0 +1,13 @@
+[package]
+name = "axum_tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7.5"
+bb8 = "0.8.5"
+bb8-postgres = "0.8.1"
+dotenv = "0.15.0"
+serde = { version = "1.0.204", features = ["derive"] }
+tokio = { version = "1.39.2", features = ["full"] }
+tokio-postgres = "0.7.11"
