@@ -1,5 +1,5 @@
 use super::pg_actor::PGMessage;
-use super::root_actor::RootMessage;
+use super::root_actor::RootQueueMessage;
 use super::state::AppState;
 
 use axum::{
@@ -15,7 +15,7 @@ impl Routes {
         State(AppState { root_receiver, .. }): State<AppState>,
     ) -> Html<&'static str> {
         let (send, recv) = oneshot::channel();
-        let msg = RootMessage::GetRoot { respond_to: send };
+        let msg = RootQueueMessage::GetRoot { respond_to: send };
 
         // Send the message to the actor
         if let Err(_) = root_receiver.send(msg).await {

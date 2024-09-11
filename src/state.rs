@@ -1,16 +1,16 @@
 use super::pg_actor::{PGActor, PGMessage};
-use super::root_actor::{RootActor, RootMessage};
+use super::root_actor::{RootActorQueue, RootQueueMessage};
 use tokio::sync::mpsc;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub root_receiver: mpsc::Sender<RootMessage>,
+    pub root_receiver: mpsc::Sender<RootQueueMessage>,
     pub pg_receiver: mpsc::Sender<PGMessage>,
 }
 
 impl AppState {
     pub async fn new() -> Self {
-        let (mut root_actor, root_tx) = RootActor::new();
+        let (mut root_actor, root_tx) = RootActorQueue::new();
         tokio::spawn(async move {
             root_actor.run().await;
         });
