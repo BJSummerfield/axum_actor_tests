@@ -14,7 +14,7 @@ pub enum RootMessage {
 
 impl RootActor {
     pub fn new() -> (Self, mpsc::Sender<RootMessage>) {
-        let (sender, receiver) = mpsc::channel(8);
+        let (sender, receiver) = mpsc::channel(100);
         let actor = RootActor { receiver };
         (actor, sender)
     }
