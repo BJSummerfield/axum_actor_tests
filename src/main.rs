@@ -1,5 +1,5 @@
-mod pg_actor;
-mod root_actor;
+mod pg_sql;
+mod root;
 mod routes;
 mod state;
 
