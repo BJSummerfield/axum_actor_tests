@@ -23,7 +23,6 @@ impl RootActor {
     fn handle_message(&mut self, msg: RootMessage) {
         match msg {
             RootMessage::GetRootBatch { respond_to } => {
-                // Send the same response to all batched requests
                 for responder in respond_to {
                     let _ = responder.send(Html("Hello, batched world!"));
                 }

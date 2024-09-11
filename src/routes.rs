@@ -1,5 +1,4 @@
-use super::{root::RootQueueMessage, state::AppState};
-use crate::pg_sql::PGQueueMessage;
+use super::{pg_sql::PGQueueMessage, root::RootQueueMessage, state::AppState};
 
 use axum::{
     extract::State,
