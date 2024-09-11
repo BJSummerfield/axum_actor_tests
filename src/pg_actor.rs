@@ -43,7 +43,6 @@ impl PGActor {
 
     pub async fn run(&mut self) {
         while let Some(msg) = self.receiver.recv().await {
-            // Make sure to await the `handle_message`
             self.handle_message(msg).await
         }
     }
@@ -52,7 +51,7 @@ impl PGActor {
         match msg {
             PGMessage::GetUser { respond_to } => {
                 let result = self.get_user().await;
-                let _ = respond_to.send(result.unwrap()); // Send the result (Ok or Err)
+                let _ = respond_to.send(result.unwrap());
             }
         }
     }
