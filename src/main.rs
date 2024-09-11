@@ -1,3 +1,4 @@
+mod pg_actor;
 mod root_actor;
 mod routes;
 mod state;
@@ -8,10 +9,11 @@ use state::AppState;
 
 #[tokio::main]
 async fn main() {
-    let app_state = AppState::new();
+    let app_state = AppState::new().await;
 
     let app = Router::new()
         .route("/", get(Routes::get_root_handler))
+        .route("/users", get(Routes::get_user_handler))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
