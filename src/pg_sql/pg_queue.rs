@@ -14,7 +14,7 @@ impl PGActorQueue {
             pg_actor.run().await;
         });
 
-        let (pg_queue_tx, pg_queue_rx) = mpsc::channel(200);
+        let (pg_queue_tx, pg_queue_rx) = mpsc::channel(100);
         let queue = PGActorQueue {
             pg_actor_tx,
             pg_queue_rx,
@@ -23,27 +23,41 @@ impl PGActorQueue {
     }
 
     pub async fn run(&mut self) {
-        while let Some(first_msg) = self.pg_queue_rx.recv().await {
-            let mut batch = Vec::new();
+        let mut batch = Vec::new();
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50)); // Adjust this value for how long you want to wait for messages
 
-            batch.push(first_msg);
+        loop {
+            tokio::select! {
+                msg = self.pg_queue_rx.recv() => {
+                    if let Some(msg) = msg {
+                        batch.push(msg);
 
-            while let Ok(msg) = self.pg_queue_rx.try_recv() {
-                batch.push(msg);
-                if batch.len() >= 100 {
-                    break;
+                        if batch.len() >= 40 {
+                            if let Err(e) = self
+                                .pg_actor_tx
+                                .send(PGMessage::GetUserBatch { respond_to: batch.split_off(0) })
+                                .await
+                            {
+                                eprintln!("Failed to send batched request to actor: {:?}", e);
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                _ = interval.tick() => {
+                    if !batch.is_empty() {
+                    println!("batch len: {}", batch.len());
+                        if let Err(e) = self
+                            .pg_actor_tx
+                            .send(PGMessage::GetUserBatch { respond_to: batch.split_off(0) })
+                            .await
+                        {
+                            eprintln!("Failed to send batched request to actor: {:?}", e);
+                        }
+                    }
                 }
             }
-
-            if let Err(e) = self
-                .pg_actor_tx
-                .send(PGMessage::GetUserBatch { respond_to: batch })
-                .await
-            {
-                eprintln!("Failed to send batched request to actor: {:?}", e);
-            }
         }
-
-        eprintln!("Queue has been closed.");
     }
 }

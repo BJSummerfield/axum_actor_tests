@@ -17,12 +17,7 @@ impl PGActor {
         let database_url = "postgresql://postgres:password@localhost:5432/mydb";
 
         let manager = PostgresConnectionManager::new_from_stringlike(&database_url, NoTls).unwrap();
-        let connection_pool = Pool::builder()
-            .max_size(80)
-            .min_idle(Some(40))
-            .build(manager)
-            .await
-            .unwrap();
+        let connection_pool = Pool::builder().build(manager).await.unwrap();
         println!("Connection pool created");
 
         let (sender, receiver) = mpsc::channel(1);
@@ -35,11 +30,25 @@ impl PGActor {
 
     pub async fn run(&mut self) {
         while let Some(msg) = self.receiver.recv().await {
-            self.handle_message(msg).await;
+            let pool = self.connection_pool.clone();
+            tokio::spawn(async move {
+                PGActor::handle_message(msg, pool).await;
+            });
         }
     }
 
-    async fn handle_message(&mut self, msg: PGMessage) {
+    fn log_pool_state(connection_pool: &Pool<PostgresConnectionManager<NoTls>>) {
+        let state = connection_pool.state();
+        let active_connections = state.connections - state.idle_connections;
+        println!(
+            "Connection pool state: {} active connections, {} idle connections",
+            active_connections, state.idle_connections
+        );
+    }
+    async fn handle_message(
+        msg: PGMessage,
+        connection_pool: Pool<PostgresConnectionManager<NoTls>>,
+    ) {
         match msg {
             PGMessage::GetUserBatch { respond_to } => {
                 let mut unique_user_ids = HashSet::new();
@@ -62,7 +71,7 @@ impl PGActor {
 
                 let unique_user_ids: Vec<i32> = unique_user_ids.into_iter().collect();
 
-                if let Ok(users) = self.get_users(unique_user_ids).await {
+                if let Ok(users) = PGActor::get_users(unique_user_ids, connection_pool).await {
                     let mut user_map: HashMap<i32, User> = HashMap::new();
                     for user in users {
                         user_map.insert(user.id, user);
@@ -88,10 +97,10 @@ impl PGActor {
     }
 
     async fn get_users(
-        &self,
         user_ids: Vec<i32>,
+        connection_pool: Pool<PostgresConnectionManager<NoTls>>,
     ) -> Result<Vec<User>, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.connection_pool.get().await?;
+        let conn = connection_pool.get().await?;
         let rows = conn
             .query(
                 "SELECT id, username FROM users WHERE id = ANY($1)",
