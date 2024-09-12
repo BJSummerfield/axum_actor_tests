@@ -27,7 +27,7 @@ impl PGActor {
         let manager = PostgresConnectionManager::new_from_stringlike(&database_url, NoTls).unwrap();
         let connection_pool = Pool::builder()
             .max_size(80)
-            .min_idle(Some(40))
+            .min_idle(Some(5))
             .build(manager)
             .await
             .unwrap();
@@ -43,21 +43,29 @@ impl PGActor {
 
     pub async fn run(&mut self) {
         while let Some(msg) = self.receiver.recv().await {
-            self.handle_message(msg).await
+            let pool = self.connection_pool.clone();
+            tokio::spawn(async move {
+                PGActor::handle_message(msg, pool).await;
+            });
         }
     }
 
-    async fn handle_message(&mut self, msg: PGMessage) {
+    async fn handle_message(
+        msg: PGMessage,
+        connection_pool: Pool<PostgresConnectionManager<NoTls>>,
+    ) {
         match msg {
             PGMessage::GetUser { respond_to } => {
-                let result = self.get_user().await;
+                let result = PGActor::get_user(connection_pool).await;
                 let _ = respond_to.send(result.unwrap());
             }
         }
     }
 
-    async fn get_user(&self) -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.connection_pool.get().await?;
+    async fn get_user(
+        connection_pool: Pool<PostgresConnectionManager<NoTls>>,
+    ) -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = connection_pool.get().await?;
         let row = conn
             .query_one("SELECT id, username FROM users WHERE id = 1", &[])
             .await?;

@@ -21,11 +21,13 @@ impl RootActor {
 
     pub async fn run(&mut self) {
         while let Some(msg) = self.receiver.recv().await {
-            self.handle_message(msg);
+            tokio::spawn(async move {
+                RootActor::handle_message(msg);
+            });
         }
     }
 
-    fn handle_message(&mut self, msg: RootMessage) {
+    fn handle_message(msg: RootMessage) {
         match msg {
             RootMessage::GetRoot { respond_to } => {
                 let _ = respond_to.send(Html("Hello, world!"));
